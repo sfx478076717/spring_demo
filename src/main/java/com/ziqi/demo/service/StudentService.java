@@ -1,5 +1,6 @@
 package com.ziqi.demo.service;
 
+import com.ziqi.demo.config.ThreadLocalCustomer;
 import com.ziqi.demo.domain.Student;
 import com.ziqi.demo.domain.dto.StudentDTO;
 import com.ziqi.demo.mapper.StudentMapper;
@@ -63,6 +64,7 @@ public class StudentService {
     public Object test(String shardingNode) {
         Map<String, String> map = new HashMap<>();
         map.put("shardingNode", shardingNode);
+        ThreadLocalCustomer.setCustomerCode(shardingNode);
         List<Object> test = tbDateMapper.test(map);
 
         return test;
