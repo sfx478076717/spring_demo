@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ziqi.demo.mapper.StudentMapper">
+  <resultMap id="BaseResultMap" type="com.ziqi.demo.domain.Student">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="name" jdbcType="VARCHAR" property="name" />
+    <result column="birthday" jdbcType="DATE" property="birthday" />
+    <result column="age" jdbcType="SMALLINT" property="age" />
+    <result column="grade" jdbcType="TINYINT" property="grade" />
+    <result column="stu_remark" jdbcType="LONGVARCHAR" property="remark" />
+  </resultMap>
+  <resultMap id="DtoResultMap" type="com.ziqi.demo.domain.dto.StudentDTO" extends="BaseResultMap">
+    <association property="gradeMessage" javaType="com.ziqi.demo.domain.GradeMessage">
+      <id column="grade" jdbcType="INTEGER" property="id" />
+      <result column="grade_name" jdbcType="VARCHAR" property="gradeName" />
+      <result column="grade_people_number" jdbcType="INTEGER" property="gradePeopleNumber" />
+    </association>
+    <collection column="{studentId=id}" property="courseList" select="selectByStudentId" ofType="com.ziqi.demo.domain.Course">
+    </collection>
+  </resultMap>
+
+  <resultMap id="CourseResultMap" type="com.ziqi.demo.domain.Course">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="student_id" jdbcType="INTEGER" property="studentId" />
+    <result column="course_name" jdbcType="VARCHAR" property="courseName" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, `name`, birthday, age, grade, stu_remark
+  </sql>
+
+  <select id="selectAllStudents" resultType="com.ziqi.demo.domain.Student">
+    select * from student
+  </select>
+
+<!--  <select id="selectAllStudents" resultMap="BaseResultMap">-->
+<!--    select * from student-->
+<!--  </select>-->
+
+<!--  <select id="selectAllStudents" resultType="com.ziqi.demo.domain.Student">-->
+<!--    select-->
+<!--        id as id,-->
+<!--        name as name,-->
+<!--        birthday as birthday,-->
+<!--        age as age,-->
+<!--        grade as grade,-->
+<!--        stu_remark as remark-->
+<!--    from student-->
+<!--  </select>-->
+
+  <select id="selectById" parameterType="int" resultMap="DtoResultMap">
+    select stu.id, `name`, birthday, age, grade, stu_remark, grade_name, grade_people_number from student as stu
+    left join grade_message gm on stu.grade = gm.id
+    where stu.id = #{id}
+  </select>
+
+  <select id="selectByStudentId" resultMap="CourseResultMap">
+    select id, student_id, course_name from course
+    where student_id = #{studentId}
+  </select>
+
+  <select id="selectByName" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from student
+    where name = #{1}
+  </select>
+
+  <select id="selectByNameAndAge" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from student
+    <!-- where标签内部形成的sql语句如果为空，会自动把where去掉, 如果不为空，会自动把开头的and去掉 -->
+    <where>
+      <if test="name != null and name != ''">
+        and `name` = #{name}
+      </if>
+      <!-- 为什么此处没有判断age != '' ? -->
+      <if test="age != null">
+        and age = #{age}
+      </if>
+    </where>
+  </select>
+  
+  <select id="selectByNameList" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from student
+    <where>
+      <if test="list != null and list.size > 0">
+        `name` in
+        <!-- (zhangsan,lisi,wangwu) -->
+        <foreach collection="list" index="index" item="item" open="(" separator="," close=")">
+          #{item}
+        </foreach>
+      </if>
+    </where>
+  </select>
+
+  <!-- 如果传入年龄，取指定年龄的值，若未传年龄，则取age大于18 -->
+  <select id="selectByAge" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from student
+    <where>
+      <choose>
+        <when test="age != null">
+          and age = #{age}
+        </when>
+        <otherwise>
+          and age > 18
+        </otherwise>
+      </choose>
+    </where>
+  </select>
+
+  <select id="selectUseTrim" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from student
+    <trim prefix="where" prefixOverrides="and">
+      <if test="id != null">
+        and id = #{id}
+      </if>
+    </trim>
+  </select>
+
+  <update id="updateUseTrim">
+    update student
+    <trim prefix="set" suffixOverrides=",">
+      <if test="age != null">
+        age = #{age},
+      </if>
+      <if test="birthday != null and birthday != ''">
+        birthday = #{birthday},
+      </if>
+      <if test="grade != null">
+        grade = #{grade},
+      </if>
+      <if test="remark != null and remark != ''">
+        remark = #{remark},
+      </if>
+    </trim>
+  </update>
+
+  <select id="selectBySearchKey" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from ${tbale_name}
+    <where>
+        <!-- % % -->
+      <if test="searchKey != null and searchKey != ''">
+        and (
+          name like CONCAT('%', #{searchKey}, '%') or
+          remark like CONCAT('%', #{searchKey}, '%')
+        )
+      </if>
+      <if test="keyWord != null and keyWord != ''">
+        and (
+          name like '%${keyWord}%' or
+          remark like '%${keyWord}%'
+        )
+      </if>
+    </where>
+    <if test="groupKey != null and groupKey != ''">
+      group by ${groupKey}
+    </if>
+  </select>
+
+  <update id="updateByName">
+    update student
+    set age = #{age}, birthday = #{birthday}, grade = #{grade}, remark = {remark}
+    where name = #{name}
+  </update>
+
+  <update id="updateByNameUseSet">
+    update student
+    <!-- set标签会自动把形成的sql语句的最后一个逗号去掉，如果形成的sql语句为空，会自动把set去掉 -->
+    <set>
+      <if test="age != null">
+        age = #{age},
+      </if>
+      <if test="birthday != null and birthday != ''">
+        birthday = #{birthday},
+      </if>
+      <if test="grade != null">
+        grade = #{grade},
+      </if>
+      <if test="remark != null and remark != ''">
+        remark = #{remark},
+      </if>
+    </set>
+  </update>
+
+  <delete id="deleteById">
+    delete from student
+    where id = #{id}
+  </delete>
+
+  <insert id="insertValue" parameterType="com.ziqi.demo.domain.Student" useGeneratedKeys="true">
+    insert into student values()
+  </insert>
+</mapper>
